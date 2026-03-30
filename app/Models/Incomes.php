@@ -39,5 +39,8 @@ class Incomes extends Model
         'nm_id' => 'integer'
     ];
 
+    protected $hidden = [
+        'created_at','updated_at'
+    ];
     use RefreshTable;
 }

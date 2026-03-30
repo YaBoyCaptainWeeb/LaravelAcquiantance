@@ -69,5 +69,8 @@ class Sales extends Model
         'is_storno' => 'boolean',
     ];
 
+    protected $hidden = [
+        'created_at','updated_at'
+    ];
     use RefreshTable;
 }

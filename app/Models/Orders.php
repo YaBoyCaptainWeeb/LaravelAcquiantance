@@ -51,5 +51,8 @@ class Orders extends Model
         "cancel_dt" => "date"
     ];
 
+    protected $hidden = [
+        'created_at','updated_at'
+    ];
     use RefreshTable;
 }

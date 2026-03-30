@@ -16,21 +16,31 @@ abstract class BaseController extends Controller
 {
     // Properties
     protected array $query;
-    protected function now() : string {
+
+    protected function now(): string
+    {
         return date('Y-m-d');
     }
 
-    abstract protected function path() : string;
-    abstract protected function getEntity() : string;
-    abstract protected function getModelClass() : string;
+    abstract protected function path(): string;
+
+    abstract protected function getEntity(): string;
+
+    abstract protected function getModelClass(): string;
+
     protected array $baseRules = [
         'key' => 'required|string'
     ];
 
+    protected array $rulesGet = [
+        'page' => 'nullable|integer|min:1',
+        'limit' => 'nullable|integer|in:100,200,300,400,500'
+    ];
 
-    abstract protected function specificRules() : array;
 
-    public function rules() : array
+    abstract protected function specificRules(): array;
+
+    public function rules(): array
     {
         return array_merge($this->baseRules, $this->specificRules());
     }
@@ -45,8 +55,7 @@ abstract class BaseController extends Controller
         $this->BuildQuery($validated, $page);
 
         $response = Http::get(config('settings.APIUrl') . $this->path(), $this->query);
-        if ($response->failed())
-        {
+        if ($response->failed()) {
             abort(response()->json(
                 [
                     'error' => $response->status(),
@@ -58,7 +67,26 @@ abstract class BaseController extends Controller
         return $response;
     }
 
-    protected function BuildQuery(array $validated, $page) : void
+    protected function RequestDataFromDB(array $params): array
+    {
+        $result = app($this->getModelClass())
+            ->query()
+            ->orderBy('id', 'desc')
+            ->paginate(perPage: $params['limit'] ?? 100, page: $params['page'] ?? 1);
+
+        return [
+            'data' => $result->items(),
+            'meta' => [
+                'total' => $result->total(),
+                'current_page' => $result->currentPage(),
+                'last_page' => $result->lastPage(),
+                'limit' => $result->perPage(),
+                'count' => $result->count()
+            ]
+        ];
+    }
+
+    protected function BuildQuery(array $validated, $page): void
     {
         $query = [
             'key' => $validated['key'],
@@ -72,32 +100,40 @@ abstract class BaseController extends Controller
 
         $this->query = $query;
     }
+
     /**
      * @throws ConnectionException
      */
     public function __invoke(Request $request)
     {
-        $request->headers->set('Accept', 'application/json');
-
         $validated = $request->validate($this->rules());
 
         $response = $this->RequestData($validated)->json();
 
         $data = $response['data'] ?? [];
         $pagesCount = $response['meta']['last_page'] ?? 1;
-//        return $this->handle($validated, $data, $pagesCount);
+
         return $this->CreateQueue($data, $pagesCount);
     }
 
-    protected function CreateQueue(array $data, int $pagesCount) {
-        $trackerId = (string) Str::uuid();
+    public function getData(Request $request)
+    {
+        $validated = $request->validate($this->rulesGet);
+
+        $data = $this->RequestDataFromDB($validated);
+
+        return response()->json($data, 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
+    protected function CreateQueue(array $data, int $pagesCount)
+    {
+        $trackerId = (string)Str::uuid();
         $entity = $this->getEntity();
         $modelClass = $this->getModelClass();
 
         $redis = Redis::client();
 
-        if (!empty($data))
-        {
+        if (!empty($data)) {
             $redis->rPush("import:$trackerId:entity", json_encode($data));
         }
 
@@ -114,8 +150,7 @@ abstract class BaseController extends Controller
 
         $interval = 1;
 
-        for ($page = 2; $page <= $pagesCount; $page++)
-        {
+        for ($page = 2; $page <= $pagesCount; $page++) {
             $delay = ($page - 2) * $interval;
             FetchPage::dispatch($this->query, $page, $trackerId, $entity)
                 ->delay(now()->addSeconds($delay));

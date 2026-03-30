@@ -20,32 +20,41 @@ Route::post('/RefreshSales', [SalesController::class, '__invoke'])
 Route::post('/RefreshOrders', [OrdersController::class, '__invoke'])
     ->middleware('throttle:10,1');
 
-Route::get('/refresh-status/{trackerId}', function ($trackerId) {
-   $total = Redis::client()->get("import:$trackerId:total");
-   $processed = Redis::client()->get("import:$trackerId:processed");
+Route::get('/getStocks', [StocksController::class, 'getData'])
+    ->middleware('throttle:10,1');
 
-   if ($total !== null)
-   {
-       $total = (int) $total;
-       $processed = (int) $processed;
-       $completed = $processed >= $total;
-   } else
-   {
-       $tracker = ImportTracker::query()->where(['tracker_id' => $trackerId])->first();
-        if (!$tracker)
-        {
+Route::get('/getIncomes', [IncomesController::class, 'getData'])
+    ->middleware('throttle:10,1');
+
+Route::get('/getOrders', [OrdersController::class, 'getData'])
+    ->middleware('throttle:10,1');
+
+Route::get('/getSales', [SalesController::class, 'getData'])
+    ->middleware('throttle:10,1');
+
+Route::get('/refresh-status/{trackerId}', function ($trackerId) {
+    $total = Redis::client()->get("import:$trackerId:total");
+    $processed = Redis::client()->get("import:$trackerId:processed");
+
+    if ($total !== null) {
+        $total = (int)$total;
+        $processed = (int)$processed;
+        $completed = $processed >= $total;
+    } else {
+        $tracker = ImportTracker::query()->where(['tracker_id' => $trackerId])->first();
+        if (!$tracker) {
             return response()->json(['error' => 'Tracker not found'], 404);
         }
         $total = $tracker->total_pages;
         $processed = $tracker->processed_pages;
         $completed = $tracker->status;
-   }
+    }
 
 
-   return response()->json([
-       'tracker_id' => $trackerId,
-       'total' => $total,
-       'processed' => $processed,
-       'status' => !$completed ? 'processing' : $completed
-   ]);
+    return response()->json([
+        'tracker_id' => $trackerId,
+        'total' => $total,
+        'processed' => $processed,
+        'status' => !$completed ? 'processing' : $completed
+    ]);
 });
