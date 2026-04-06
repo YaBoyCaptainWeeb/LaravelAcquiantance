@@ -62,7 +62,7 @@ class FetchPage implements ShouldQueue
 
         $data = $response->json()['data'] ?? [];
 
-        Log::info("$this->trackerId : Страница {$this->page} для {$this->entity}: загружено " . count($data) . " записей");
+        Log::info("$this->trackerId : Страница $this->page для $this->entity: загружено " . count($data) . " записей");
         if (!empty($data)) {
             Redis::client()->rPush("import:$this->trackerId:pages", json_encode($data));
         }

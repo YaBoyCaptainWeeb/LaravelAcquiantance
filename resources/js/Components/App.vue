@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import Home from "@/Components/Home.vue";
+import {useToast, Toast} from "primevue";
+import {setToast} from "@/Utils/axios.ts";
+import NavigationBar from "@/NavigationBar.vue";
 
-function handleSubmit(value: number) {
-    console.log('App получил значение: ', value);
-    alert(`App получил значение от Home: ${value}`);
-}
+const toast = useToast();
+
+setToast(toast);
 </script>
 
 <template>
-    <div>
-        <h2>App component</h2>
-
-        <Home @submit="handleSubmit" />
-    </div>
+    <Toast/>
+    <main class="w-screen h-screen flex flex-col overflow-hidden bg-surface-100 p-2">
+        <NavigationBar class="mb-1"/>
+        <router-view class="flex-1 min-h-0"/>
+    </main>
 </template>
 
 <style scoped>

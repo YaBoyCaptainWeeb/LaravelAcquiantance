@@ -50,60 +50,6 @@ abstract class BaseController extends Controller
     /**
      * @throws ConnectionException
      */
-    protected function RequestData(array $validated, $page = 1)
-    {
-        $this->BuildQuery($validated, $page);
-
-        $response = Http::get(config('settings.APIUrl') . $this->path(), $this->query);
-        if ($response->failed()) {
-            abort(response()->json(
-                [
-                    'error' => $response->status(),
-                    'message' => $response->json() ?? $response->body()
-                ],
-                $response->status()
-            ));
-        }
-        return $response;
-    }
-
-    protected function RequestDataFromDB(array $params): array
-    {
-        $result = app($this->getModelClass())
-            ->query()
-            ->orderBy('id', 'desc')
-            ->paginate(perPage: $params['limit'] ?? 100, page: $params['page'] ?? 1);
-
-        return [
-            'data' => $result->items(),
-            'meta' => [
-                'total' => $result->total(),
-                'current_page' => $result->currentPage(),
-                'last_page' => $result->lastPage(),
-                'limit' => $result->perPage(),
-                'count' => $result->count()
-            ]
-        ];
-    }
-
-    protected function BuildQuery(array $validated, $page): void
-    {
-        $query = [
-            'key' => $validated['key'],
-            'dateFrom' => $this instanceof StocksController ? $this->now() : $validated['dateFrom'],
-            'page' => $page
-        ];
-
-        if (isset($validated['dateTo'])) {
-            $query['dateTo'] = $validated['dateTo'];
-        }
-
-        $this->query = $query;
-    }
-
-    /**
-     * @throws ConnectionException
-     */
     public function __invoke(Request $request)
     {
         $validated = $request->validate($this->rules());
@@ -123,6 +69,26 @@ abstract class BaseController extends Controller
         $data = $this->RequestDataFromDB($validated);
 
         return response()->json($data, 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * @throws ConnectionException
+     */
+    protected function RequestData(array $validated, $page = 1)
+    {
+        $this->BuildQuery($validated, $page);
+
+        $response = Http::get(config('settings.APIUrl') . $this->path(), $this->query);
+        if ($response->failed()) {
+            abort(response()->json(
+                [
+                    'error' => $response->status(),
+                    'message' => $response->json() ?? $response->body()
+                ],
+                $response->status()
+            ));
+        }
+        return $response;
     }
 
     protected function CreateQueue(array $data, int $pagesCount)
@@ -166,5 +132,39 @@ abstract class BaseController extends Controller
             'tracker_id' => $trackerId,
             'total_pages' => $pagesCount,
         ], 202);
+    }
+
+    protected function BuildQuery(array $validated, $page): void
+    {
+        $query = [
+            'key' => $validated['key'],
+            'dateFrom' => $this instanceof StocksController ? $this->now() : $validated['dateFrom'],
+            'page' => $page
+        ];
+
+        if (isset($validated['dateTo'])) {
+            $query['dateTo'] = $validated['dateTo'];
+        }
+
+        $this->query = $query;
+    }
+
+    protected function RequestDataFromDB(array $params): array
+    {
+        $result = app($this->getModelClass())
+            ->query()
+            ->orderBy('id', 'desc')
+            ->paginate(perPage: $params['limit'] ?? 100, page: $params['page'] ?? 1);
+
+        return [
+            'data' => $result->items(),
+            'meta' => [
+                'total' => $result->total(),
+                'current_page' => $result->currentPage(),
+                'last_page' => $result->lastPage(),
+                'limit' => $result->perPage(),
+                'count' => $result->count()
+            ]
+        ];
     }
 }
